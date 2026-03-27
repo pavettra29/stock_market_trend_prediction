@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+env/
+
+# ML model files (too large for GitHub)
+models/*.pt
+models/*.pth
+models/*.pkl
+models/*.h5
+
+# Data files
+data/
+*.csv
+*.json
+*.xlsx
+
+# React / Node
+frontend/node_modules/
+frontend/build/
+
+# macOS
+.DS_Store
+
+# Flask
+instance/
+*.sqlite3

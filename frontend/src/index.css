@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg:          #080c14;
+  --bg2:         #0d1420;
+  --bg3:         #111927;
+  --border:      #1e2d42;
+  --border2:     #243347;
+  --text:        #e8edf5;
+  --text2:       #7a92b0;
+  --text3:       #4a6180;
+  --up:          #00e5a0;
+  --up-dim:      #00e5a015;
+  --down:        #ff4d6d;
+  --down-dim:    #ff4d6d15;
+  --accent:      #3d8bff;
+  --accent-dim:  #3d8bff12;
+  --gold:        #f5c842;
+  --font-display: 'Syne', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+  --radius:      12px;
+  --radius-lg:   20px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grid noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 70% 10%, #1a3a6620 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 80%, #0a2a4410 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root { position: relative; z-index: 1; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* shared utility classes */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.tag-up   { background: var(--up-dim);   color: var(--up);   border: 1px solid #00e5a030; }
+.tag-down { background: var(--down-dim); color: var(--down); border: 1px solid #ff4d6d30; }
+.tag-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid #3d8bff30; }
+
+button {
+  font-family: var(--font-display);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input {
+  font-family: var(--font-mono);
+  outline: none;
+  border: none;
+}
