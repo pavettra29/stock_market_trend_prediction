@@ -1,7 +1,7 @@
 cat > README.md << 'EOF'
 # Stock Market Trend Prediction
 
-A final year project that predicts stock market trends using an LSTM deep learning model.
+A  project that predicts stock market trends using an LSTM deep learning model.
 
 ## Tech Stack
 - **Frontend**: React.js
