@@ -1,69 +1,46 @@
 """
-api/app.py  —  Flask REST API for Stock Trend Prediction Dashboard
-==================================================================
-Run:
-    cd /Users/pavettra/stock_prediction_project
-    source venv/bin/activate
-    python api/app.py
+api/app.py — Flask REST API for Stock Trend Prediction
 """
-
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
-
-# ── your existing modules ─────────────────────────────────────────────────────
 from predict import predict, compute_features, download_recent_data
 from config import US_STOCKS, INDIAN_STOCKS, FEATURE_COLS, LOOKBACK
-
 app = Flask(__name__)
-CORS(app)  # allow React dev server to call this API
-
-# ── Phase 3 metrics (hardcode from your results/) ────────────────────────────
+CORS(app)
 PHASE3_METRICS = {
-    "AAPL":     {"auc": 0.483, "accuracy": 0.50, "val_acc": 0.50},
-    "MSFT":     {"auc": 0.537, "accuracy": 0.52, "val_acc": 0.52},
-    "GOOGL":    {"auc": 0.499, "accuracy": 0.51, "val_acc": 0.51},
-    "AMZN":     {"auc": 0.470, "accuracy": 0.49, "val_acc": 0.49},
-    "NVDA":     {"auc": 0.566, "accuracy": 0.54, "val_acc": 0.53},
+    "AAPL": {"auc": 0.483, "accuracy": 0.50, "val_acc": 0.50},
+    "MSFT": {"auc": 0.537, "accuracy": 0.52, "val_acc": 0.52},
+    "GOOGL": {"auc": 0.499, "accuracy": 0.51, "val_acc": 0.51},
+    "AMZN": {"auc": 0.470, "accuracy": 0.49, "val_acc": 0.49},
+    "NVDA": {"auc": 0.566, "accuracy": 0.54, "val_acc": 0.53},
 }
-
 INDIAN_TO_US_PROXY = {
-    "TCS":      "MSFT",
+    "TCS": "MSFT",
     "RELIANCE": "AMZN",
     "HDFCBANK": "MSFT",
 }
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ROUTES
-# ─────────────────────────────────────────────────────────────────────────────
-
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
-
-
 @app.route("/api/predict")
 def api_predict():
     ticker = request.args.get("ticker", "").upper().strip()
-    if not ticker:
+if not ticker:
         return jsonify({"error": "ticker parameter is required"}), 400
-    try:
+try:
         result = predict(ticker, verbose=False)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 @app.route("/api/overview")
 def api_overview():
-    """Predict all 8 stocks and return as a list."""
     all_tickers = US_STOCKS + INDIAN_STOCKS
     results = []
     for ticker in all_tickers:
@@ -84,74 +61,60 @@ def api_overview():
         "timestamp": datetime.now().isoformat(),
         "total": len(results),
     })
-
-
 @app.route("/api/chart")
 def api_chart():
-    """Return 60-day OHLCV + key indicators for charting."""
     ticker = request.args.get("ticker", "AAPL").upper().strip()
     is_indian = ticker in INDIAN_STOCKS
     yf_ticker = (ticker + ".NS") if is_indian else ticker
-
     try:
         df = yf.download(yf_ticker, period="90d", auto_adjust=True, progress=False)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-
-        close  = df["Close"].squeeze()
-        high   = df["High"].squeeze()
-        low    = df["Low"].squeeze()
+        close = df["Close"].squeeze()
+        high = df["High"].squeeze()
+        low = df["Low"].squeeze()
         volume = df["Volume"].squeeze()
 
-        # SMA 20
         sma20 = close.rolling(20).mean()
-        # Bollinger bands
-        bb_std   = close.rolling(20).std()
+        bb_std = close.rolling(20).std()
         bb_upper = sma20 + 2 * bb_std
         bb_lower = sma20 - 2 * bb_std
-        # RSI
+
         delta = close.diff()
-        gain  = delta.clip(lower=0).rolling(14).mean()
-        loss  = (-delta.clip(upper=0)).rolling(14).mean()
-        rsi   = 100 - (100 / (1 + gain / (loss + 1e-9)))
+        gain = delta.clip(lower=0).rolling(14).mean()
+        loss = (-delta.clip(upper=0)).rolling(14).mean()
+        rsi = 100 - (100 / (1 + gain / (loss + 1e-9)))
 
         dates = df.index.strftime("%Y-%m-%d").tolist()
 
         def clean(series):
-            return [round(float(v), 4) if not np.isnan(v) else None
-                    for v in series.values]
+            return [round(float(v), 4) if not np.isnan(v) else None for v in series.values]
 
         return jsonify({
             "ticker": ticker,
-            "dates":  dates,
-            "close":  clean(close),
-            "high":   clean(high),
-            "low":    clean(low),
+            "dates": dates,
+            "close": clean(close),
+            "high": clean(high),
+            "low": clean(low),
             "volume": clean(volume),
-            "sma20":  clean(sma20),
+            "sma20": clean(sma20),
             "bb_upper": clean(bb_upper),
             "bb_lower": clean(bb_lower),
-            "rsi":    clean(rsi),
+            "rsi": clean(rsi),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/performance")
 def api_performance():
-    """Return Phase 3 evaluation metrics for all trained stocks."""
     return jsonify({
         "metrics": PHASE3_METRICS,
         "description": "AUC and accuracy scores from Phase 3 test-set evaluation",
     })
 
-
+# Production + Development entry point
 if __name__ == "__main__":
-    print("\n  Flask API running at http://localhost:5001\n")
-    app.run(debug=True, port=5001)
-from flask_cors import CORS
-import os
-CORS(app)
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5001))
+    debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+    print(f"\n🚀 Flask API running at http://0.0.0.0:{port}\n")
+    app.run(host="0.0.0.0", port=port, debug=debug)
