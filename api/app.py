@@ -1,19 +1,26 @@
 """
 api/app.py — Flask REST API for Stock Trend Prediction
 """
+
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
+# Your existing modules
 from predict import predict, compute_features, download_recent_data
 from config import US_STOCKS, INDIAN_STOCKS, FEATURE_COLS, LOOKBACK
+
 app = Flask(__name__)
 CORS(app)
+
+# Phase 3 metrics
 PHASE3_METRICS = {
     "AAPL": {"auc": 0.483, "accuracy": 0.50, "val_acc": 0.50},
     "MSFT": {"auc": 0.537, "accuracy": 0.52, "val_acc": 0.52},
@@ -21,24 +28,31 @@ PHASE3_METRICS = {
     "AMZN": {"auc": 0.470, "accuracy": 0.49, "val_acc": 0.49},
     "NVDA": {"auc": 0.566, "accuracy": 0.54, "val_acc": 0.53},
 }
+
 INDIAN_TO_US_PROXY = {
     "TCS": "MSFT",
     "RELIANCE": "AMZN",
     "HDFCBANK": "MSFT",
 }
+
+# ── ROUTES ─────────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
+
+
 @app.route("/api/predict")
 def api_predict():
     ticker = request.args.get("ticker", "").upper().strip()
-if not ticker:
+    if not ticker:
         return jsonify({"error": "ticker parameter is required"}), 400
-try:
+    try:
         result = predict(ticker, verbose=False)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/overview")
 def api_overview():
     all_tickers = US_STOCKS + INDIAN_STOCKS
@@ -61,6 +75,8 @@ def api_overview():
         "timestamp": datetime.now().isoformat(),
         "total": len(results),
     })
+
+
 @app.route("/api/chart")
 def api_chart():
     ticker = request.args.get("ticker", "AAPL").upper().strip()
@@ -105,6 +121,7 @@ def api_chart():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/performance")
 def api_performance():
     return jsonify({
@@ -112,9 +129,10 @@ def api_performance():
         "description": "AUC and accuracy scores from Phase 3 test-set evaluation",
     })
 
-# Production + Development entry point
+
+# Production entry point
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     print(f"\n🚀 Flask API running at http://0.0.0.0:{port}\n")
     app.run(host="0.0.0.0", port=port, debug=debug)
