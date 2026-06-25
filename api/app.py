@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
 import yfinance as yf
 import pandas as pd
@@ -35,7 +35,15 @@ INDIAN_TO_US_PROXY = {
     "HDFCBANK": "MSFT",
 }
 
-# ── ROUTES ─────────────────────────────────────────────────────────────
+# Root route - helpful for Render health checks
+@app.route("/")
+def home():
+    return jsonify({
+        "status": "ok",
+        "message": "Stock Trend Prediction API is running",
+        "endpoints": ["/api/health", "/api/predict?ticker=AAPL", "/api/overview"]
+    })
+
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
