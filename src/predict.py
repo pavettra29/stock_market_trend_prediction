@@ -27,7 +27,7 @@ import yfinance as yf
 # ── import everything directly from your own modules ─────────────────────────
 from model import LSTMClassifier
 from config import (
-    MODEL_DIR,
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api", "models"),
     FEATURE_COLS,       # the exact 28 columns, in training order
     LOOKBACK,           # 30
     INPUT_SIZE,         # 28
@@ -179,7 +179,7 @@ def download_recent_data(yf_ticker: str) -> pd.DataFrame:
 #
 #  If you saved a fitted scaler in Phase 2/3 (e.g. AAPL_scaler.pkl), swap in:
 #      import joblib
-#      scaler = joblib.load(os.path.join(MODEL_DIR, f"{model_ticker}_scaler.pkl"))
+#      scaler = joblib.load(os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api", "models"), f"{model_ticker}_scaler.pkl"))
 #      return scaler.transform(window)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -198,7 +198,7 @@ def normalise(window: np.ndarray) -> np.ndarray:
 
 def load_model(model_ticker: str) -> LSTMClassifier:
     """Load the best checkpoint for `model_ticker` from MODEL_DIR."""
-    path = os.path.join(MODEL_DIR, f"{model_ticker}_best.pt")
+    path = os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api", "models"), f"{model_ticker}_best.pt")
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"Checkpoint not found: {path}\n"
