@@ -1,0 +1,11 @@
+flask
+flask-cors
+gunicorn
+torch
+torchvision
+torchaudio --index-url https://download.pytorch.org/whl/cpu
+pandas
+numpy
+yfinance
+scikit-learn
+matplotlib
