@@ -6,17 +6,8 @@ __pycache__/
 venv/
 env/
 
-# ML model files (too large for GitHub)
-models/*.pt
-models/*.pth
-models/*.pkl
-models/*.h5
-
-# Data files
+# Data files (re-downloaded live via yfinance, not needed in repo)
 data/
-*.csv
-*.json
-*.xlsx
 
 # React / Node
 frontend/node_modules/
@@ -25,6 +16,13 @@ frontend/build/
 # macOS
 .DS_Store
 
-# Flask
+# Flask / DB
 instance/
 *.sqlite3
+*.db
+
+# Backup files
+*.bak
+*.pre-auth-backup
+*.broken-backup
+src/results/

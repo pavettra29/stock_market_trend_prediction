@@ -1,10 +1,14 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import './index.css';
-import Predict   from './pages/Predict';
-import Overview  from './pages/Overview';
-import IndianOOD from './pages/IndianOOD';
+import Predict     from './pages/Predict';
+import Overview    from './pages/Overview';
+import IndianOOD   from './pages/IndianOOD';
 import Performance from './pages/Performance';
+import Login       from './pages/Login';
+import Signup      from './pages/Signup';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const NAV = [
   { to: '/',            label: 'Live Predict' },
@@ -13,50 +17,72 @@ const NAV = [
   { to: '/performance',label: 'Model Stats'  },
 ];
 
+function Layout({ children }) {
+  const { user, logout } = useAuth();
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <aside style={styles.sidebar}>
+        <div style={styles.logo}>
+          <div style={styles.logoMark}>S</div>
+          <div>
+            <div style={styles.logoTitle}>StockSense</div>
+            <div style={styles.logoSub}>AI Trend Predictor</div>
+          </div>
+        </div>
+
+        <nav style={{ marginTop: 40 }}>
+          {NAV.map(n => (
+            <NavLink key={n.to} to={n.to} end={n.to === '/'}
+              style={({ isActive }) => ({
+                ...styles.navLink,
+                ...(isActive ? styles.navLinkActive : {}),
+              })}>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div style={styles.sidebarFooter}>
+          {user && (
+            <>
+              <div style={styles.footerBadge}>Logged in as {user.username}</div>
+              <button style={styles.logoutBtn} onClick={logout}>Log out</button>
+            </>
+          )}
+          <div style={{ ...styles.footerText, marginTop: 10 }}>Parul University</div>
+          <div style={styles.footerText}>Final Year Project · CSE</div>
+          <div style={styles.footerText}>LSTM · 28 features · 8 stocks</div>
+        </div>
+      </aside>
+
+      <main style={styles.main}>{children}</main>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        {/* ── Sidebar ── */}
-        <aside style={styles.sidebar}>
-          <div style={styles.logo}>
-            <div style={styles.logoMark}>S</div>
-            <div>
-              <div style={styles.logoTitle}>StockSense</div>
-              <div style={styles.logoSub}>AI Trend Predictor</div>
-            </div>
-          </div>
-
-          <nav style={{ marginTop: 40 }}>
-            {NAV.map(n => (
-              <NavLink key={n.to} to={n.to} end={n.to === '/'}
-                style={({ isActive }) => ({
-                  ...styles.navLink,
-                  ...(isActive ? styles.navLinkActive : {}),
-                })}>
-                {n.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div style={styles.sidebarFooter}>
-            <div style={styles.footerBadge}>Parul University</div>
-            <div style={styles.footerText}>Final Year Project · CSE</div>
-            <div style={styles.footerText}>LSTM · 28 features · 8 stocks</div>
-          </div>
-        </aside>
-
-        {/* ── Main content ── */}
-        <main style={styles.main}>
-          <Routes>
-            <Route path="/"             element={<Predict />}     />
-            <Route path="/overview"     element={<Overview />}    />
-            <Route path="/indian"       element={<IndianOOD />}   />
-            <Route path="/performance"  element={<Performance />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <Layout>
+                <Routes>
+                  <Route path="/"             element={<Predict />}     />
+                  <Route path="/overview"     element={<Overview />}    />
+                  <Route path="/indian"       element={<IndianOOD />}   />
+                  <Route path="/performance"  element={<Performance />} />
+                  <Route path="*"             element={<Navigate to="/" replace />} />
+                </Routes>
+              </Layout>
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
@@ -135,5 +161,14 @@ const styles = {
     color: 'var(--text3)',
     fontFamily: 'var(--font-mono)',
     marginTop: 3,
+  },
+  logoutBtn: {
+    fontSize: 11,
+    padding: '4px 10px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text2)',
+    cursor: 'pointer',
   },
 };

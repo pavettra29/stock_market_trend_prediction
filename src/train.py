@@ -1,7 +1,10 @@
-# train.py — Final working version
-# Key insight: the model was collapsing because of over-regularisation.
-# Fix: simpler model (1 LSTM layer), lower dropout, shorter lookback,
-#      larger batch size, no weight decay, plain BCELoss.
+# train.py — Final stable version
+# Key settings vs previous versions:
+#   • Patience = 15 (was 10) — gives model more time to learn
+#   • MAX_EPOCHS = 150       — more room to converge
+#   • LR = 1e-3, no decay    — let Adam find its own rhythm
+#   • Plain BCELoss + Sigmoid in model
+#   • No pos_weight          — classes are ~50/50
 
 import os
 import time
@@ -13,19 +16,16 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from config import (
     US_STOCKS, MODEL_DIR, RESULTS_DIR, DEVICE, SEED,
-    HIDDEN_SIZE, DROPOUT, BIDIRECTIONAL,
-    LOOKBACK,
+    HIDDEN_SIZE, NUM_LAYERS, DROPOUT, BIDIRECTIONAL,
+    BATCH_SIZE, LOOKBACK, WEIGHT_DECAY,
 )
 from dataset import get_dataloaders
 from model import LSTMClassifier
 
-# ── Overriding config values for final stable run ────────────────────────────
-BATCH_SIZE     = 32    # smaller batches = more gradient updates per epoch
-MAX_EPOCHS     = 200
+MAX_EPOCHS     = 150
 LEARNING_RATE  = 1e-3
-WEIGHT_DECAY   = 0.0   # no L2 — was contributing to collapse
-EARLY_STOP_PAT = 20
-LR_PATIENCE    = 10
+EARLY_STOP_PAT = 15
+LR_PATIENCE    = 8
 LR_FACTOR      = 0.5
 
 
@@ -72,19 +72,11 @@ def train_ticker(ticker: str, verbose: bool = True):
     train_loader, val_loader, _, _ = get_dataloaders(
         ticker, batch_size=BATCH_SIZE, lookback=LOOKBACK)
 
-    # Print class balance info
-    all_y = torch.cat([y for _, y in train_loader])
-    n_pos = (all_y == 1).sum().item()
-    n_neg = (all_y == 0).sum().item()
-    print(f"  Class balance — pos: {n_pos}  neg: {n_neg}  "
-          f"ratio: {n_pos/(n_pos+n_neg):.2%}")
-
     criterion = nn.BCELoss()
 
     model = LSTMClassifier(
-        hidden_size=HIDDEN_SIZE,
-        dropout=DROPOUT,
-        bidirectional=BIDIRECTIONAL,
+        hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS,
+        dropout=DROPOUT, bidirectional=BIDIRECTIONAL,
     ).to(DEVICE)
     model.summary()
 

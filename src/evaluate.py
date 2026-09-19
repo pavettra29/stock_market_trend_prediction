@@ -1,6 +1,7 @@
 # evaluate.py
 # Loads best saved checkpoints, evaluates on test sets.
-# Model outputs probabilities directly (Sigmoid in model head).
+# Produces per-ticker metrics + confusion matrix + summary CSV.
+# Supports both US (in-distribution) and Indian (OOD) stocks.
 
 import os
 import torch
@@ -23,15 +24,18 @@ from dataset import get_dataloaders
 from model import LSTMClassifier
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 def load_model(ticker: str) -> LSTMClassifier:
+    """Load the best checkpoint for a ticker."""
     ckpt_path = os.path.join(MODEL_DIR, f"{ticker}_best.pt")
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
+
     model = LSTMClassifier(
-    hidden_size=HIDDEN_SIZE,
-    dropout=DROPOUT,
-    bidirectional=BIDIRECTIONAL,
-).to(DEVICE)
+        hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS,
+        dropout=DROPOUT, bidirectional=BIDIRECTIONAL,
+    ).to(DEVICE)
+
     ckpt = torch.load(ckpt_path, map_location=DEVICE)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
@@ -40,17 +44,23 @@ def load_model(ticker: str) -> LSTMClassifier:
     return model
 
 
-def predict(model, loader, device=DEVICE):
-    """Returns (y_true, y_proba) — model already applies Sigmoid."""
+# ─────────────────────────────────────────────────────────────────────────────
+def predict(model: LSTMClassifier, loader, device=DEVICE):
+    """Run inference. Returns (y_true, y_pred_proba) as numpy arrays."""
     all_probs, all_labels = [], []
     with torch.no_grad():
         for X_batch, y_batch in loader:
-            probs = model(X_batch.to(device))   # already probabilities
+            # model outputs logits — apply sigmoid to get probabilities
+            logits = model(X_batch.to(device))
+            probs  = torch.sigmoid(logits)
             all_probs.append(probs.cpu().numpy())
             all_labels.append(y_batch.numpy())
-    return np.concatenate(all_labels), np.concatenate(all_probs)
+
+    return (np.concatenate(all_labels),
+            np.concatenate(all_probs))
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 def compute_metrics(y_true, y_proba, threshold=0.5):
     y_pred = (y_proba >= threshold).astype(int)
     return {
@@ -62,75 +72,108 @@ def compute_metrics(y_true, y_proba, threshold=0.5):
     }
 
 
-def plot_confusion_matrix(y_true, y_pred, ticker, split):
+# ─────────────────────────────────────────────────────────────────────────────
+def plot_confusion_matrix(y_true, y_pred, ticker: str, split: str):
     cm  = confusion_matrix(y_true, y_pred)
     fig, ax = plt.subplots(figsize=(4, 3))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax,
                 xticklabels=["Down", "Up"], yticklabels=["Down", "Up"])
-    ax.set_xlabel("Predicted"); ax.set_ylabel("Actual")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
     ax.set_title(f"{ticker} — {split} confusion matrix")
     plt.tight_layout()
     out = os.path.join(RESULTS_DIR, f"{ticker}_{split}_confusion.png")
-    plt.savefig(out, dpi=150); plt.close()
+    plt.savefig(out, dpi=150)
+    plt.close()
     return out
 
 
-def plot_training_curve(ticker):
+def plot_training_curve(ticker: str):
     log_path = os.path.join(RESULTS_DIR, f"{ticker}_training_log.csv")
     if not os.path.exists(log_path):
+        print(f"  No training log for {ticker}, skipping curve.")
         return
+
     df = pd.read_csv(log_path)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
     axes[0].plot(df["epoch"], df["train_loss"], label="Train loss")
     axes[0].plot(df["epoch"], df["val_loss"],   label="Val loss")
-    axes[0].set_title(f"{ticker} — Loss"); axes[0].legend()
+    axes[0].set_title(f"{ticker} — Loss")
+    axes[0].set_xlabel("Epoch"); axes[0].legend()
+
     axes[1].plot(df["epoch"], df["train_acc"], label="Train acc")
     axes[1].plot(df["epoch"], df["val_acc"],   label="Val acc")
-    axes[1].set_title(f"{ticker} — Accuracy"); axes[1].legend()
+    axes[1].set_title(f"{ticker} — Accuracy")
+    axes[1].set_xlabel("Epoch"); axes[1].legend()
+
     plt.tight_layout()
     out = os.path.join(RESULTS_DIR, f"{ticker}_training_curve.png")
-    plt.savefig(out, dpi=150); plt.close()
+    plt.savefig(out, dpi=150)
+    plt.close()
     return out
 
 
 def plot_roc_curves_all(tickers=None):
+    """
+    Figure 7.3 — ROC curves for all US stocks on their own test sets.
+    """
     if tickers is None:
         tickers = US_STOCKS
+
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
     fig, ax = plt.subplots(figsize=(7, 6))
+
     for ticker, color in zip(tickers, colors):
         try:
             model = load_model(ticker)
             _, _, test_loader, _ = get_dataloaders(ticker, batch_size=BATCH_SIZE)
             y_true, y_proba = predict(model, test_loader)
+
             fpr, tpr, _ = roc_curve(y_true, y_proba)
             auc = roc_auc_score(y_true, y_proba)
             ax.plot(fpr, tpr, color=color, lw=2,
                     label=f"{ticker}  (AUC = {auc:.3f})")
         except Exception as e:
             print(f"  Skipping {ticker} for ROC: {e}")
-    ax.plot([0, 1], [0, 1], "k--", lw=1, label="Random baseline")
-    ax.set_xlim([0, 1]); ax.set_ylim([0, 1.05])
-    ax.set_xlabel("False positive rate"); ax.set_ylabel("True positive rate")
-    ax.set_title("Figure 7.3 — ROC curves, all US stocks (test set)")
-    ax.legend(loc="lower right"); ax.grid(alpha=0.3)
+
+    ax.plot([0, 1], [0, 1], "k--", lw=1, label="Random baseline (AUC = 0.500)")
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel("False positive rate", fontsize=12)
+    ax.set_ylabel("True positive rate", fontsize=12)
+    ax.set_title("Figure 7.3 — ROC curves for all US stocks (test set)", fontsize=13)
+    ax.legend(loc="lower right", fontsize=10)
+    ax.grid(alpha=0.3)
     plt.tight_layout()
     out = os.path.join(RESULTS_DIR, "all_us_roc_curves.png")
-    plt.savefig(out, dpi=150); plt.close()
+    plt.savefig(out, dpi=150)
+    plt.close()
     print(f"\n  ROC curves saved → {out}")
     return out
 
 
-def evaluate_ticker(train_ticker, eval_ticker=None, split="test"):
+# ─────────────────────────────────────────────────────────────────────────────
+def evaluate_ticker(train_ticker: str, eval_ticker: str = None,
+                    split: str = "test"):
+    """
+    Evaluate the model trained on `train_ticker` on the test split
+    of `eval_ticker`. Used for OOD testing.
+    """
     if eval_ticker is None:
         eval_ticker = train_ticker
+
     model = load_model(train_ticker)
     _, _, test_loader, _ = get_dataloaders(
-        eval_ticker, batch_size=BATCH_SIZE, lookback=LOOKBACK)
+        eval_ticker, batch_size=BATCH_SIZE, lookback=LOOKBACK
+    )
+
     y_true, y_proba = predict(model, test_loader)
     metrics = compute_metrics(y_true, y_proba)
     y_pred  = (y_proba >= 0.5).astype(int)
+
     plot_confusion_matrix(y_true, y_pred, eval_ticker, split)
+
     label = (f"{train_ticker}→{eval_ticker}"
              if train_ticker != eval_ticker else train_ticker)
     print(f"\n  [{label}]  {split}")
@@ -139,12 +182,15 @@ def evaluate_ticker(train_ticker, eval_ticker=None, split="test"):
           f"Prec={metrics['precision']}  Rec={metrics['recall']}")
     print(classification_report(y_true, y_pred,
                                  target_names=["Down", "Up"], zero_division=0))
+
     return metrics
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 def evaluate_all():
     all_results = []
 
+    # ── in-distribution ───────────────────────────────────────────────────
     print("\n" + "═"*55)
     print("  IN-DISTRIBUTION (US stocks)")
     print("═"*55)
@@ -157,8 +203,10 @@ def evaluate_all():
         except Exception as e:
             print(f"  Skipping {ticker}: {e}")
 
+    # ── ROC curves (Figure 7.3) ───────────────────────────────────────────
     plot_roc_curves_all()
 
+    # ── OOD: US models on Indian stocks ───────────────────────────────────
     print("\n" + "═"*55)
     print("  OUT-OF-DISTRIBUTION (Indian stocks)")
     print("═"*55)
@@ -171,6 +219,7 @@ def evaluate_all():
             except Exception as e:
                 print(f"  Skipping {us_ticker}→{ind_ticker}: {e}")
 
+    # ── save summary ──────────────────────────────────────────────────────
     summary_df   = pd.DataFrame(all_results)
     summary_path = os.path.join(RESULTS_DIR, "evaluation_summary.csv")
     summary_df.to_csv(summary_path, index=False)
@@ -179,5 +228,6 @@ def evaluate_all():
     return summary_df
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     evaluate_all()

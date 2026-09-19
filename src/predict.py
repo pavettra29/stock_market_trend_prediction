@@ -27,16 +27,16 @@ import yfinance as yf
 # ── import everything directly from your own modules ─────────────────────────
 from model import LSTMClassifier
 from config import (
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "api", "models"),
-    FEATURE_COLS,       # the exact 28 columns, in training order
-    LOOKBACK,           # 30
-    INPUT_SIZE,         # 28
-    HIDDEN_SIZE,        # 64
-    DROPOUT,            # 0.2
-    BIDIRECTIONAL,      # False
+    MODEL_DIR,
+    FEATURE_COLS,
+    LOOKBACK,
+    INPUT_SIZE,
+    HIDDEN_SIZE,
+    DROPOUT,
+    BIDIRECTIONAL,
     DEVICE,
-    US_STOCKS,          # ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
-    INDIAN_STOCKS,      # ["TCS", "RELIANCE", "HDFCBANK"]
+    US_STOCKS,
+    INDIAN_STOCKS,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
