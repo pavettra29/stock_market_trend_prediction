@@ -6,7 +6,7 @@ import {
   Tooltip, Cell, ReferenceLine,
 } from 'recharts';
 
-const API = 'http://localhost:5001/api';
+const API = '/api';
 
 const COLORS = {
   AAPL:  '#3d8bff',

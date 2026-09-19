@@ -5,7 +5,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line,
 } from 'recharts';
 
-const API = 'http://localhost:5001/api';
+const API = '/api';
 const QUICK = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TCS','RELIANCE','HDFCBANK'];
 
 export default function Predict() {

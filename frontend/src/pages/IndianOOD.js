@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
-const API = 'http://localhost:5001/api';
+const API = '/api';
 
 const INDIAN = ['TCS', 'RELIANCE', 'HDFCBANK'];
 const PROXY_INFO = {
