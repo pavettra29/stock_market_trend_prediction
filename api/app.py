@@ -1,15 +1,19 @@
 import sys, os
+print("[BOOT] 1/8 starting imports", flush=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required
 from datetime import datetime, timedelta
+print("[BOOT] 2/8 flask imports done, importing predict (torch etc)", flush=True)
 from predict import predict, download_recent_data, compute_features
+print("[BOOT] 3/8 predict module imported", flush=True)
 from config import US_STOCKS, INDIAN_STOCKS, MODEL_DIR
 import pandas as pd
 
 from models import db, bcrypt
 from auth import auth_bp
+print("[BOOT] 4/8 all imports done, creating Flask app", flush=True)
 
 app = Flask(__name__)
 CORS(app)
@@ -26,16 +30,21 @@ if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"connect_timeout": 10}}
+print("[BOOT] 5/8 config set, DB target host:", database_url.split("@")[-1] if "@" in database_url else database_url, flush=True)
 
 db.init_app(app)
 bcrypt.init_app(app)
 jwt = JWTManager(app)
 app.register_blueprint(auth_bp)
+print("[BOOT] 6/8 extensions initialized, about to connect to DB", flush=True)
 
 with app.app_context():
     db.create_all()
+print("[BOOT] 7/8 db.create_all() succeeded", flush=True)
 
 print("MODEL_DIR =", MODEL_DIR)
+print("[BOOT] 8/8 startup complete, app ready", flush=True)
 
 @app.route("/")
 def home():
